@@ -13,7 +13,7 @@ description = \
 
 requires = [
     "python-2.7",
-    "qt"
+    "qt_py"
 ]
 
 

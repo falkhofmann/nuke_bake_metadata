@@ -1,24 +1,34 @@
-"""Interface module to be used from within Nuke."""
+"""Interface module to be used from within Nuke.
+
+In case you want to use Qt rather than PySide directly it is possible to
+exchange the upper import block to:
+
+from Qt import QtCore
+from Qt import QtGui
+from Qt import QtWidgets
+
+"""
 
 try:
     # < Nuke 11
     import PySide.QtCore as QtCore
     import PySide.QtGui as QtGui
-    import PySide.QtGui as QtGuiWidgets
+    import PySide.QtGui as QtWidgets
 except ImportError:
     # >= Nuke 11
     import PySide2.QtCore as QtCore
     import PySide2.QtGui as QtGui
-    import PySide2.QtWidgets as QtGuiWidgets
+    import PySide2.QtWidgets as QtWidgets
 
 from nuke_bake_metadata.constants import STYLES
 from nuke_bake_metadata import utils
 
+reload(utils)
 
 METADATA_BOX = None
 
 
-class Button(QtGuiWidgets.QPushButton):
+class Button(QtWidgets.QPushButton):
     """Custom Pushbutton to change color when mouse enters adn leaves."""
 
     def __init__(self, text):
@@ -48,7 +58,7 @@ class Button(QtGuiWidgets.QPushButton):
         self.setStyleSheet(STYLES['regular'])
 
 
-class SearchLine(QtGuiWidgets.QLineEdit):  # pylint: disable=too-few-public-methods
+class SearchLine(QtWidgets.QLineEdit):  # pylint: disable=too-few-public-methods
     """LineEdit with combined Completer"""
 
     def __init__(self, table, metadata):
@@ -56,8 +66,8 @@ class SearchLine(QtGuiWidgets.QLineEdit):  # pylint: disable=too-few-public-meth
         self.table = table
         self.metadata = metadata
         self.setPlaceholderText('search for metadata key...')
-        self.completer = QtGuiWidgets.QCompleter(self.metadata.keys(), self)
-        self.completer.setCompletionMode(QtGuiWidgets.QCompleter.PopupCompletion)
+        self.completer = QtWidgets.QCompleter(self.metadata.keys(), self)
+        self.completer.setCompletionMode(QtWidgets.QCompleter.PopupCompletion)
         self.setCompleter(self.completer)
 
         self.completer.activated.connect(self._complete)
@@ -72,7 +82,7 @@ class SearchLine(QtGuiWidgets.QLineEdit):  # pylint: disable=too-few-public-meth
         self.table.add_row(self.metadata, item)
 
 
-class RangeLine(QtGuiWidgets.QLineEdit):  # pylint: disable=too-few-public-methods
+class RangeLine(QtWidgets.QLineEdit):  # pylint: disable=too-few-public-methods
     """LineEdit validator to only accepts digits as input."""
 
     def __init__(self, placeholder):
@@ -82,18 +92,20 @@ class RangeLine(QtGuiWidgets.QLineEdit):  # pylint: disable=too-few-public-metho
         self.setValidator(QtGui.QRegExpValidator(regex, self))
 
 
-class Table(QtGuiWidgets.QTableWidget):  # pylint: disable=too-few-public-methods
+class Table(QtWidgets.QTableWidget):  # pylint: disable=too-few-public-methods
     """Table with specific settings and add_row method."""
+    idx_key, idx_type = 0, 1
 
     def __init__(self, node):
         super(Table, self).__init__()
         self.node = node
+        self.type_ = None
         header_items = ['Key', 'Type']
 
         self.setSortingEnabled(True)
         self.setColumnCount(len(header_items))
         self.setHorizontalHeaderLabels(header_items)
-        self.setSelectionBehavior(QtGuiWidgets.QAbstractItemView.SelectRows)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         header = self.horizontalHeader()
         header.setMinimumSectionSize(100)
         header.setStretchLastSection(True)
@@ -108,17 +120,20 @@ class Table(QtGuiWidgets.QTableWidget):  # pylint: disable=too-few-public-method
 
         """
 
-        key = TableItem(item, metadata)
-        type_ = TableItem(utils.get_value_type(self.node, metadata[item]))
+        key_item = TableItem(item, metadata)
+        type_dict = {str: 'str', int: 'int', float: 'float', list: 'list'}
+        type_ = utils.get_value_type(self.node, metadata[item])
+        type_item = TableItem(type_dict[type_])
+        type_item.type_ = type_  # pylint: disable=attribute-defined-outside-init
 
         row = self.rowCount()
         self.insertRow(row)
-        self.setItem(row, 0, key)
-        self.setItem(row, 1, type_)
+        self.setItem(row, 0, key_item)
+        self.setItem(row, 1, type_item)
 
 
-class TableItem(QtGuiWidgets.QTableWidgetItem):  # pylint: disable=too-few-public-methods
-    """Table iwdget to hold metadata dict."""
+class TableItem(QtWidgets.QTableWidgetItem):  # pylint: disable=too-few-public-methods
+    """Table widget to hold metadata dict."""
 
     def __init__(self, item, metadata=None):
         super(TableItem, self).__init__()
@@ -126,16 +141,17 @@ class TableItem(QtGuiWidgets.QTableWidgetItem):  # pylint: disable=too-few-publi
         self.setText(item)
 
 
-class Interface(QtGuiWidgets.QWidget):  # pylint: disable=too-many-instance-attributes
+class Interface(QtWidgets.QWidget):  # pylint: disable=too-many-instance-attributes
     """Interface in interact with user.
 
     Holds a search inout, table, range inputs and cancel/confirm buttons.
 
     """
+
     def __init__(self, node, metadata):
         super(Interface, self).__init__()
         self.node = node
-        self. metadata = metadata
+        self.metadata = metadata
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         self.setMinimumSize(800, 300)
 
@@ -150,17 +166,17 @@ class Interface(QtGuiWidgets.QWidget):  # pylint: disable=too-many-instance-attr
 
         space = 500
 
-        range_layout = QtGuiWidgets.QHBoxLayout()
+        range_layout = QtWidgets.QHBoxLayout()
         range_layout.addSpacing(space)
         range_layout.addWidget(self.first)
         range_layout.addWidget(self.last)
 
-        button_layout = QtGuiWidgets.QHBoxLayout()
+        button_layout = QtWidgets.QHBoxLayout()
         button_layout.addSpacing(space)
         button_layout.addWidget(self.cancel_button)
         button_layout.addWidget(self.bake_button)
 
-        main_layout = QtGuiWidgets.QVBoxLayout()
+        main_layout = QtWidgets.QVBoxLayout()
         self.setLayout(main_layout)
 
         main_layout.addWidget(self.line_edit)
@@ -181,16 +197,35 @@ class Interface(QtGuiWidgets.QWidget):  # pylint: disable=too-many-instance-attr
 
         noop = utils.create_node(self.node)
         for row in range(self.table.rowCount()):
-            item = self.table.item(row, 0)
+            item = self.table.item(row, self.table.idx_key)
             key = item.text()
             m_key = item.metadata[key]
-            utils.create_numerical_animation(self.node,
-                                             noop,
-                                             m_key,
-                                             key,
-                                             int(self.first.text()),
-                                             int(self.last.text())
-                                            )
+
+            type_ = self.table.item(row, self.table.idx_type).text()
+
+            if type_ in ('int', 'float'):
+                utils.create_numerical_animation(self.node,
+                                                 noop,
+                                                 m_key,
+                                                 key,
+                                                 int(self.first.text()),
+                                                 int(self.last.text())
+                                                )
+
+            elif type_ == 'list':
+                utils.create_matrix_knob(self.node,
+                                         noop,
+                                         m_key,
+                                         key,
+                                         int(self.first.text()),
+                                         int(self.last.text())
+                                        )
+            elif type_ == 'str':
+                utils.create_text_knob(self.node,
+                                       noop,
+                                       m_key,
+                                       key)
+
         self.cancel()
 
     def cancel(self):

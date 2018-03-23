@@ -35,7 +35,7 @@ def is_number(string):
 
 
 def get_value_type(node, key):
-    """Seperate between text, numeric or list.
+    """Separate between text, numeric or list.
 
     Args:
         node (nuke.node): Node to run metadata check on.
@@ -45,12 +45,7 @@ def get_value_type(node, key):
         str: Text, Number or List
 
     """
-    value = node.metadata(key)
-    type_ = 'Text'
-    if is_number(value):
-        type_ = 'Number'
-
-    return type_
+    return type(node.metadata(key))
 
 
 def create_node(node):
@@ -91,6 +86,45 @@ def create_numerical_animation(node, noop, m_key, key, first, last):  # pylint: 
     anim.addKey([nuke.AnimationKey(i, node.metadata(m_key, i)) for i in xrange(first, last)])
 
     nuke.show(noop)
+
+
+def create_matrix_knob(node, noop, m_key, key, first, last):
+    """Create a one dimensional Matrix based on the length of metadata.
+
+    Args:
+        node (nuke.node): Node to read metadata from.
+        noop (nuke.node): Node to add custom knob to.
+        m_key (str): Full metadata key.
+        key (str): Last section of metadata key.
+        first (int): Frame number when animation should start.
+        last (int): Frame number when animation should stop.
+
+    """
+    mtx = len(node.metadata(m_key))
+    array = nuke.IArray_Knob(key, key, [mtx, 1])
+    noop.addKnob(array)
+    array.setAnimated()
+
+    for frame in xrange(first, last):
+        keys = []
+        for index in range(mtx):
+            anim = array.animations()[index]
+            keys.append(nuke.AnimationKey(frame, node.metadata(m_key)[index]))
+            anim.addKey(keys)
+
+
+def create_text_knob(node, noop, m_key, key):
+    """Create a String knob and add the metadata value as text.
+
+    Args:
+        node (nuke.node): Node to read metadata from.
+        noop (nuke.node): Node to add custom knob to.
+        m_key (str): Full metadata key.
+        key (str): Last section of metadata key.
+
+    """
+    text = nuke.String_Knob(key, key, str(node.metadata(m_key)))
+    noop.addKnob(text)
 
 
 def get_node():
