@@ -1,37 +1,12 @@
 """Provide utility functions."""
 
-import unicodedata
-
 try:
     import nuke
 except ImportError:
     pass
 
-from nuke_bake_metadata.constants import COLORS
-
-
-def is_number(string):
-    """Check if string is numeric.
-
-    Args:
-        string (str): String to verify if numerical or not.
-
-    Returns:
-        bool: True if string is numerical.
-
-    """
-    try:
-        float(string)
-        return True
-    except ValueError:
-        pass
-
-    try:
-        unicodedata.numeric(string)
-
-        return True
-    except (TypeError, ValueError):
-        pass
+from nuke_bake_metadata import constants
+reload(constants)
 
 
 def get_value_type(node, key):
@@ -62,7 +37,7 @@ def create_node(node):
     noop = nuke.nodes.NoOp(hide_input=True,
                            xpos=node.xpos() + 100,
                            ypos=node.ypos(),
-                           tile_color=COLORS['noop'],
+                           tile_color=constants.COLORS['noop'],
                            label=lab)
     return noop
 
@@ -101,15 +76,15 @@ def create_matrix_knob(node, noop, m_key, key, first, last):
 
     """
     mtx = len(node.metadata(m_key))
-    array = nuke.IArray_Knob(key, key, [mtx, 1])
+    array = nuke.IArray_Knob(key.replace(':', '_'), key, [mtx, 1])
     noop.addKnob(array)
     array.setAnimated()
 
     for frame in xrange(first, last):
-        keys = []
         for index in range(mtx):
+            keys = []
             anim = array.animations()[index]
-            keys.append(nuke.AnimationKey(frame, node.metadata(m_key)[index]))
+            keys.append(nuke.AnimationKey(frame, node.metadata(m_key, frame)[index]))
             anim.addKey(keys)
 
 
@@ -131,10 +106,13 @@ def get_node():
     """Get the current selected node from nodegraph.
 
     Returns:
-        Node: Selected node.
+        Node: Selected node if a node is selected in nodegraph.
 
     """
-    return nuke.selectedNode()
+    try:
+        return nuke.selectedNode()
+    except ValueError:
+        return None
 
 
 def get_metadata(node):
@@ -148,4 +126,12 @@ def get_metadata(node):
             value.
 
     """
-    return {key.rpartition('/')[-1]: key for key in node.metadata().keys()}
+    try:
+        return {key.rpartition('/')[-1]: key for key in node.metadata().keys()}
+    except AttributeError:
+        return None
+
+
+def message():
+    nuke.message('Something went wrong.\nPlease double check node selection and'
+                 ' metadata')

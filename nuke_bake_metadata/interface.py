@@ -14,6 +14,7 @@ try:
     import PySide.QtCore as QtCore
     import PySide.QtGui as QtGui
     import PySide.QtGui as QtWidgets
+
 except ImportError:
     # >= Nuke 11
     import PySide2.QtCore as QtCore
@@ -79,7 +80,7 @@ class SearchLine(QtWidgets.QLineEdit):  # pylint: disable=too-few-public-methods
             item (str): Completed item.
 
         """
-        self.table.add_row(self.metadata, item)
+        self.table.add_row(item, self.metadata)
 
 
 class RangeLine(QtWidgets.QLineEdit):  # pylint: disable=too-few-public-methods
@@ -111,7 +112,7 @@ class Table(QtWidgets.QTableWidget):  # pylint: disable=too-few-public-methods
         header.setStretchLastSection(True)
         self.verticalHeader().setVisible(False)
 
-    def add_row(self, metadata, item):
+    def add_row(self, item, metadata):
         """Add a single row to the table.
 
         Args:
@@ -119,17 +120,17 @@ class Table(QtWidgets.QTableWidget):  # pylint: disable=too-few-public-methods
             item (str): Completed item from user input.
 
         """
+        if item in metadata.keys():
+            key_item = TableItem(item, metadata)
+            type_dict = {str: 'str', int: 'int', float: 'float', list: 'list'}
+            type_ = utils.get_value_type(self.node, metadata[item])
+            type_item = TableItem(type_dict[type_])
+            type_item.type_ = type_  # pylint: disable=attribute-defined-outside-init
 
-        key_item = TableItem(item, metadata)
-        type_dict = {str: 'str', int: 'int', float: 'float', list: 'list'}
-        type_ = utils.get_value_type(self.node, metadata[item])
-        type_item = TableItem(type_dict[type_])
-        type_item.type_ = type_  # pylint: disable=attribute-defined-outside-init
-
-        row = self.rowCount()
-        self.insertRow(row)
-        self.setItem(row, 0, key_item)
-        self.setItem(row, 1, type_item)
+            row = self.rowCount()
+            self.insertRow(row)
+            self.setItem(row, 0, key_item)
+            self.setItem(row, 1, type_item)
 
 
 class TableItem(QtWidgets.QTableWidgetItem):  # pylint: disable=too-few-public-methods
@@ -157,6 +158,9 @@ class Interface(QtWidgets.QWidget):  # pylint: disable=too-many-instance-attribu
 
         self.table = Table(self.node)
         self.line_edit = SearchLine(self.table, self.metadata)
+        self.add_button = Button('')
+        icon = self.add_button.style().standardIcon(QtGui.QStyle.SP_MediaPlay)
+        self.add_button.setIcon(icon)
 
         self.first = RangeLine('first')
         self.last = RangeLine('last')
@@ -165,6 +169,10 @@ class Interface(QtWidgets.QWidget):  # pylint: disable=too-many-instance-attribu
         self.bake_button = Button('bake')
 
         space = 500
+
+        line_layout = QtWidgets.QHBoxLayout()
+        line_layout.addWidget(self.line_edit)
+        line_layout.addWidget(self.add_button)
 
         range_layout = QtWidgets.QHBoxLayout()
         range_layout.addSpacing(space)
@@ -179,21 +187,26 @@ class Interface(QtWidgets.QWidget):  # pylint: disable=too-many-instance-attribu
         main_layout = QtWidgets.QVBoxLayout()
         self.setLayout(main_layout)
 
-        main_layout.addWidget(self.line_edit)
+        main_layout.addLayout(line_layout)
         main_layout.addWidget(self.table)
         main_layout.addLayout(range_layout)
         main_layout.addLayout(button_layout)
 
         self.cancel_button.clicked.connect(self.cancel)
         self.bake_button.clicked.connect(self.bake_keys)
+        self.add_button.clicked.connect(
+                lambda: self.table.add_row(self.line_edit.text(),
+                                           self.metadata))
 
     def bake_keys(self):
         """Bake each item in table into keyframes."""
 
         for line in (self.first, self.last):
             if not line.text().strip():
-                self.first.setStyleSheet(STYLES['red'])
+                line.setStyleSheet(STYLES['red'])
                 return
+            else:
+                self.first.setStyleSheet('')
 
         noop = utils.create_node(self.node)
         for row in range(self.table.rowCount()):
@@ -241,8 +254,14 @@ class Interface(QtWidgets.QWidget):  # pylint: disable=too-many-instance-attribu
 def start_from_nuke():
     """Start up function from within nuke."""
     node = utils.get_node()
-    metadata = utils.get_metadata(node)
-    if metadata:
-        global METADATA_BOX  # pylint: disable=global-statement
-        METADATA_BOX = Interface(node, metadata)
-        METADATA_BOX.show()
+    if node:
+        metadata = utils.get_metadata(node)
+
+        if metadata:
+            global METADATA_BOX  # pylint: disable=global-statement
+            METADATA_BOX = Interface(node, metadata)
+            METADATA_BOX.show()
+        else:
+            utils.message()
+    else:
+        utils.message()
