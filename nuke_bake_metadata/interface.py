@@ -24,7 +24,6 @@ except ImportError:
 from nuke_bake_metadata.constants import STYLES
 from nuke_bake_metadata import utils
 
-reload(utils)
 
 METADATA_BOX = None
 

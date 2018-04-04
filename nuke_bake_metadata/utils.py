@@ -6,7 +6,6 @@ except ImportError:
     pass
 
 from nuke_bake_metadata import constants
-reload(constants)
 
 
 def get_value_type(node, key):
