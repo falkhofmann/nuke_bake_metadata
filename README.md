@@ -8,6 +8,10 @@ nuke_bake_metadata
 This package is designed to work within the software package [Nuke].
 It allows the user to convert metadata values into usable keyframes inside the application.
 
+Demo
+----
+Check out the [demo](https://vimeo.com/261734907) on vimeo
+
 
 How it works
 ------------
